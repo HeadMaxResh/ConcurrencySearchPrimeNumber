@@ -6,6 +6,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.example.algoritms.basic.SieveOfEratosthenes
 import org.example.algoritms.range.RangePrimeChecker
+import org.example.algoritms.range.RangePrimeChecker.Companion.checkRangeForComposite
+import org.example.algoritms.range.RangePrimeChecker.Companion.findPrimesFromRange
 import org.example.strategy.PrimeFindingStrategy
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -13,6 +15,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.sqrt
 
 class ParallelSieveSequentialCheck: PrimeFindingStrategy {
+
+    override val description: String
+        get() = "Последовательный перебор простых чисел"
 
     override suspend fun findPrimes(n: Int, numThreads: Int): List<Int> = coroutineScope {
         val m: Int = sqrt(n.toDouble()).toInt()
@@ -38,13 +43,13 @@ class ParallelSieveSequentialCheck: PrimeFindingStrategy {
 
                         if (currentPrime == null) break
 
-                        localPrimes.addAll(RangePrimeChecker.checkRangeForComposite(m + 1, n, currentPrime))
+                        localPrimes.addAll(checkRangeForComposite(m + 1, n, currentPrime))
                     }
                     localPrimes
                 }
             }.awaitAll().flatten().distinct().sorted()
 
-            val primesInRange = RangePrimeChecker.findPrimesFromRange(m, n, results)
+            val primesInRange = findPrimesFromRange(m, n, results)
 
             return@coroutineScope basePrimes + primesInRange
         }

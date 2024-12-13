@@ -1,15 +1,12 @@
 package org.example.script
 
-import org.example.algoritms.parallel.ParallelSieveDataDecomposition
-import org.example.algoritms.parallel.ParallelSievePrimeNumberDecomposition
-import org.example.algoritms.parallel.ParallelSieveSequentialCheck
-import org.example.algoritms.parallel.ParallelSieveWithThreadPool
+import org.example.algoritms.parallel.*
 import org.example.calculator.PrimeCalculator
-import kotlin.system.measureTimeMillis
 import kotlin.time.measureTime
 
-suspend fun startBenchmarkPrimesApp() {
+suspend fun runBenchmarkApp() {
     while (true) {
+
         val n = promptUser("Введите максимальное число для поиска простых чисел (n):", 5000)
         val count = promptUser("Введите количество шагов (count):", 40)
         val step = promptUser("Введите шаг между количеством потоков (step):", 10)
@@ -17,7 +14,7 @@ suspend fun startBenchmarkPrimesApp() {
         println("Запуск с параметрами: n=$n, count=$count, step=$step")
         benchmarkPrimes(n, count, step)
 
-        if (programExit()) break
+        if (exitApp()) break
     }
 }
 
@@ -27,8 +24,9 @@ private suspend fun benchmarkPrimes(n: Int, count: Int, step: Int) {
     val strategies = listOf(
         ParallelSieveDataDecomposition(),
         ParallelSievePrimeNumberDecomposition(),
-        ParallelSieveSequentialCheck(),
-        ParallelSieveWithThreadPool()
+        ParallelSieveWithThreadPool(),
+        ParallelSieveWithThreadPoolSingleCheck(),
+        ParallelSieveSequentialCheck()
     )
 
     println(
@@ -64,7 +62,7 @@ private suspend fun benchmarkPrimes(n: Int, count: Int, step: Int) {
             println(
                 String.format(
                     "%-50s %-10d %-15d %-15.2f %f",
-                    strategy::class.simpleName,
+                    strategy.description,
                     numThreads,
                     parallelTimeTaken.inWholeNanoseconds,
                     speedup,
@@ -75,20 +73,20 @@ private suspend fun benchmarkPrimes(n: Int, count: Int, step: Int) {
     }
 }
 
-private fun programExit(): Boolean {
-    println("Выйти из программы (да/нет):")
+private fun promptUser(message: String, defaultValue: Int): Int {
+    println("$message (по умолчанию: $defaultValue)")
+    val input = readlnOrNull()?.toIntOrNull()
+    return input ?: defaultValue
+}
+
+private fun exitApp(): Boolean {
+    println("Выйти из программы? (да/нет):")
     val continueInput = readlnOrNull()?.trim()?.lowercase()
     if (continueInput == "да") {
         println("Завершение программы.")
         return true
     }
     return false
-}
-
-private fun promptUser(message: String, defaultValue: Int): Int {
-    println("$message (по умолчанию: $defaultValue)")
-    val input = readlnOrNull()?.toIntOrNull()
-    return input ?: defaultValue
 }
 
 private fun generateStepList(count: Int, step: Int): List<Int> {

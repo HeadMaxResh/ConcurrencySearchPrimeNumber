@@ -5,11 +5,15 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.example.algoritms.basic.SieveOfEratosthenes
 import org.example.algoritms.range.RangePrimeChecker
+import org.example.algoritms.range.RangePrimeChecker.Companion.checkRangeForComposite
 import org.example.algoritms.range.RangePrimeChecker.Companion.findPrimesFromRange
 import org.example.strategy.PrimeFindingStrategy
 import kotlin.math.sqrt
 
 class ParallelSievePrimeNumberDecomposition: PrimeFindingStrategy {
+
+    override val description: String
+        get() = "Декомпозиция набора простых чисел"
 
     override suspend fun findPrimes(n: Int, numThreads: Int): List<Int> = runBlocking {
         val m: Int = sqrt(n.toDouble()).toInt()
@@ -20,7 +24,7 @@ class ParallelSievePrimeNumberDecomposition: PrimeFindingStrategy {
 
         val results = primeChunks.map { primesSubset ->
             async {
-                RangePrimeChecker.checkRangeForComposite(m + 1, n, primesSubset)
+                checkRangeForComposite(m + 1, n, primesSubset)
             }
         }.awaitAll().flatten().distinct()
 

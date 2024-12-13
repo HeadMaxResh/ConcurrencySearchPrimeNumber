@@ -3,7 +3,7 @@ package org.example.algoritms.range
 class RangePrimeChecker {
 
     companion object {
-        fun checkRangeForPrimes(start: Int, end: Int, primes: List<Int>): List<Int> {
+        suspend fun checkRangeForPrimes(start: Int, end: Int, primes: List<Int>): List<Int> {
             val isPrime = BooleanArray(end - start + 1) { true }
             for (prime in primes) {
                 val firstMultiple = if (start % prime == 0) start else start + (prime - start % prime)
@@ -23,7 +23,7 @@ class RangePrimeChecker {
             return (start..end).filter { isPrime[it - start] }
         }
 
-        fun checkRangeForComposite(start: Int, end: Int, primes: List<Int>): List<Int> {
+        suspend fun checkRangeForComposite(start: Int, end: Int, primes: List<Int>): List<Int> {
             val isComposite = BooleanArray(end - start + 1) { false }
             for (prime in primes) {
                 val firstMultiple = if (start % prime == 0) start else start + (prime - start % prime)
