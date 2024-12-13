@@ -3,7 +3,10 @@ package org.example.algoritms.basic
 import org.example.strategy.PrimeFindingStrategy
 import kotlin.math.sqrt
 
-class SieveOfEratosthenes: PrimeFindingStrategy {
+class SieveOfEratosthenes() : PrimeFindingStrategy {
+
+    override val description: String
+        get() = "Классический алгоритм решета Эратосфена"
 
     override suspend fun findPrimes(n: Int, numThreads: Int): List<Int> {
         val isPrime = BooleanArray(n + 1) { true }
