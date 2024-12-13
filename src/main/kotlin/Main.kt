@@ -1,6 +1,7 @@
 package org.example
 
 import kotlinx.coroutines.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.sqrt
@@ -8,7 +9,7 @@ import kotlin.time.measureTime
 
 
 fun generateStepList(count: Int, step: Int): List<Int> {
-    return (1 .. count).map { i -> i * step }
+    return (1..count).map { i -> i * step }
 }
 
 fun main() = runBlocking {
@@ -30,7 +31,7 @@ fun main() = runBlocking {
         System.gc()
         val parallelTimeTaken = measureTime {
             val parallelPrimes = parallelSieveSequentialCheck(n, numThreads)
-            //println(parallelPrimes)
+            println(parallelPrimes)
         }
 
         val speedup = sequentialTimeTaken / parallelTimeTaken
@@ -83,7 +84,7 @@ fun modifiedSieve(n: Int): List<Int> {
 suspend fun checkRangeForPrimes(start: Int, end: Int, primes: List<Int>): List<Int> {
     val isPrime = BooleanArray(end - start + 1) { true }
     for (prime in primes) {
-        val firstMultiple = start + (prime - start % prime) % prime
+        val firstMultiple = if (start % prime == 0) start else start + (prime - start % prime)
         for (j in firstMultiple..end step prime) {
             isPrime[j - start] = false
         }
@@ -94,7 +95,7 @@ suspend fun checkRangeForPrimes(start: Int, end: Int, primes: List<Int>): List<I
 
 fun checkRangeForPrimes(start: Int, end: Int, prime: Int): List<Int> {
     val isPrime = BooleanArray(end - start + 1) { true }
-    val firstMultiple = start + (prime - start % prime) % prime
+    val firstMultiple = if (start % prime == 0) start else start + (prime - start % prime)
     for (j in firstMultiple..end step prime) {
         isPrime[j - (start)] = false
     }
@@ -104,7 +105,7 @@ fun checkRangeForPrimes(start: Int, end: Int, prime: Int): List<Int> {
 suspend fun checkRangeForComposite(start: Int, end: Int, primes: List<Int>): List<Int> {
     val isComposite = BooleanArray(end - start + 1) { false }
     for (prime in primes) {
-        val firstMultiple = start + (prime - start % prime) % prime
+        val firstMultiple = if (start % prime == 0) start else start + (prime - start % prime)
         for (j in firstMultiple..end step prime) {
             isComposite[j - start] = true
         }
@@ -115,11 +116,22 @@ suspend fun checkRangeForComposite(start: Int, end: Int, primes: List<Int>): Lis
 
 fun checkRangeForComposite(start: Int, end: Int, prime: Int): List<Int> {
     val isPrime = BooleanArray(end - start + 1) { false }
-    val firstMultiple = start + (prime - start % prime) % prime
+    val firstMultiple = if (start % prime == 0) start else start + (prime - start % prime)
     for (j in firstMultiple..end step prime) {
         isPrime[j - (start)] = true
     }
     return (start..end).filter { isPrime[it - start] }
+}
+
+private fun findPrimesFromRange(
+    m: Int,
+    n: Int,
+    results: List<Int>,
+): List<Int> {
+    val allNumbers = (m + 1..n).toList()
+    val compositeSet = results.toSet()
+    val primesInRange = allNumbers.filterNot { it in compositeSet }
+    return primesInRange
 }
 
 suspend fun parallelSieveDataDecomposition(n: Int, numThreads: Int): List<Int> = runBlocking {
@@ -156,8 +168,7 @@ fun parallelSievePrimeNumberDecomposition(n: Int, numThreads: Int): List<Int> = 
         }
     }.awaitAll().flatten().distinct()
 
-    val allNumbers = (m + 1..n).toList()
-    val primesInRange = allNumbers.filterNot { it in results }
+    val primesInRange = findPrimesFromRange(m, n, results)
 
     return@runBlocking basePrimes + primesInRange
 }
@@ -168,18 +179,17 @@ suspend fun parallelSieveWithThreadPoolSingleCheck(n: Int, numThreads: Int): Lis
 
     val threadPool = Executors.newFixedThreadPool(numThreads).asCoroutineDispatcher()
 
-    val results = basePrimes.map { prime ->
-        async(threadPool) {
-            checkRangeForComposite(m + 1, n, prime)
-        }
-    }.awaitAll().flatten().distinct().sorted()
+    threadPool.use { _ ->
+        val results = basePrimes.map { prime ->
+            async(threadPool) {
+                checkRangeForComposite(m + 1, n, prime)
+            }
+        }.awaitAll().flatten().distinct().sorted()
 
-    threadPool.close()
+        val primesInRange = findPrimesFromRange(m, n, results)
 
-    val allNumbers = (m + 1..n).toList()
-    val primesInRange = allNumbers.filterNot { it in results }
-
-    return@coroutineScope basePrimes + primesInRange
+        return@coroutineScope basePrimes + primesInRange
+    }
 }
 
 suspend fun parallelSieveWithThreadPool(n: Int, numThreads: Int): List<Int> = coroutineScope {
@@ -190,21 +200,21 @@ suspend fun parallelSieveWithThreadPool(n: Int, numThreads: Int): List<Int> = co
 
     val chunkSize = ((n - m) + numThreads - 1) / numThreads
 
-    val results = List(numThreads) { index ->
-        async(threadPool) {
-            val start = m + index * chunkSize + 1
-            val end = minOf(start + chunkSize - 1, n)
-            if (start <= end) {
-                checkRangeForPrimes(start, end, basePrimes)
-            } else {
-                emptyList()
+    threadPool.use { _ ->
+        val results = List(numThreads) { index ->
+            async(threadPool) {
+                val start = m + index * chunkSize + 1
+                val end = minOf(start + chunkSize - 1, n)
+                if (start <= end) {
+                    checkRangeForPrimes(start, end, basePrimes)
+                } else {
+                    emptyList()
+                }
             }
-        }
-    }.awaitAll().flatten()
+        }.awaitAll().flatten()
 
-    threadPool.close()
-
-    return@coroutineScope basePrimes + results
+        return@coroutineScope basePrimes + results
+    }
 }
 
 suspend fun parallelSieveSequentialCheck(n: Int, numThreads: Int): List<Int> = coroutineScope {
@@ -216,30 +226,30 @@ suspend fun parallelSieveSequentialCheck(n: Int, numThreads: Int): List<Int> = c
     val primeQueue = basePrimes.toMutableList()
     val lock = Any()
 
-    val results = (1..numThreads).map {
-        async(threadPool) {
-            val localPrimes = mutableListOf<Int>()
-            while (true) {
-                val currentPrime: Int? = synchronized(lock) {
-                    if (primeQueue.isNotEmpty()) {
-                        primeQueue.removeAt(0)
-                    } else {
-                        null
+    threadPool.use { _ ->
+        val results = (1..numThreads).map {
+            async(threadPool) {
+                val localPrimes = ConcurrentHashMap.newKeySet<Int>()
+                while (true) {
+                    val currentPrime: Int? = synchronized(lock) {
+                        if (primeQueue.isNotEmpty()) {
+                            primeQueue.removeAt(0)
+                        } else {
+                            null
+                        }
                     }
+
+                    if (currentPrime == null) break
+
+                    localPrimes.addAll(checkRangeForComposite(m + 1, n, currentPrime))
                 }
-
-                if (currentPrime == null) break
-
-                localPrimes.addAll(checkRangeForComposite(m + 1, n, currentPrime))
+                localPrimes
             }
-            localPrimes
-        }
-    }.awaitAll().flatten().distinct().sorted()
+        }.awaitAll().flatten().distinct().sorted()
 
-    threadPool.close()
+        val primesInRange = findPrimesFromRange(m, n, results)
 
-    val allNumbers = (m + 1..n).toList()
-    val primesInRange = allNumbers.filterNot { it in results }
-
-    return@coroutineScope basePrimes + primesInRange
+        return@coroutineScope basePrimes + primesInRange
+    }
 }
+
