@@ -3,7 +3,11 @@ package org.example.algoritms.basic
 import org.example.strategy.PrimeFindingStrategy
 import kotlin.math.sqrt
 
-class ModifiedSieve: PrimeFindingStrategy {
+class ModifiedSieve() : PrimeFindingStrategy {
+
+    override val description: String
+        get() = "Модифицированный алгоритм решета Эратосфена"
+
 
     override suspend fun findPrimes(n: Int, numThreads: Int): List<Int> {
         val m: Int = sqrt(n.toDouble()).toInt()
