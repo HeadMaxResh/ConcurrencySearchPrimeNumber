@@ -6,11 +6,15 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.example.algoritms.basic.SieveOfEratosthenes
 import org.example.algoritms.range.RangePrimeChecker
+import org.example.algoritms.range.RangePrimeChecker.Companion.checkRangeForPrimes
 import org.example.strategy.PrimeFindingStrategy
 import java.util.concurrent.Executors
 import kotlin.math.sqrt
 
 class ParallelSieveWithThreadPool: PrimeFindingStrategy {
+
+    override val description: String
+        get() = "Применение пула потоков"
 
     override suspend fun findPrimes(n: Int, numThreads: Int): List<Int> = coroutineScope {
         val m: Int = sqrt(n.toDouble()).toInt()
@@ -25,7 +29,7 @@ class ParallelSieveWithThreadPool: PrimeFindingStrategy {
                     val start = m + index * chunkSize + 1
                     val end = minOf(start + chunkSize - 1, n)
                     if (start <= end) {
-                        RangePrimeChecker.checkRangeForPrimes(start, end, basePrimes)
+                        checkRangeForPrimes(start, end, basePrimes)
                     } else {
                         emptyList()
                     }
